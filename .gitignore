@@ -5,3 +5,6 @@
 .vscode
 .DS_Store
 .idea
+
+
+mongodb+srv://alisamogila:1XBulaOgRx2WZteJ@cluster0.q5dwn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
