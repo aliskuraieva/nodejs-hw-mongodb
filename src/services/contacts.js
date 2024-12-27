@@ -22,20 +22,20 @@ export const getAllContacts = async ({
     contactsQuery.where('isFavourite').equals(filter.isFavourite);
   }
 
-  const items = await contactsQuery
-    .skip(skip)
-    .limit(limit)
-    .sort({ [sortBy]: sortOrder });
-  const total = await contactsCollection
-    .find()
-    .merge(contactsQuery)
-    .countDocuments();
+  const [countContacts, contacts] = await Promise.all([
+    contactsCollection.find().merge(contactsQuery).countDocuments(),
+    contactsQuery
+      .find()
+      .limit(limit)
+      .skip(skip)
+      .sort({ [sortBy]: sortOrder })
+      .exec(),
+  ]);
 
-  const paginationData = calculatePaginationData({ total, page, perPage });
+  const paginationData = calculatePaginationData(countContacts, page, perPage);
 
   return {
-    items,
-    total,
+    data: contacts,
     ...paginationData,
   };
 };
