@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { ctrlWrapper } from '../utils/ctrlWrapper.js';
 import {
-  addContactController,
-  deleteContactController,
   getAllContactsController,
   getContactByIdController,
+  addContactController,
   patchContactController,
+  deleteContactController,
 } from '../controllers/contacts.js';
 
 import { validateBody } from '../middlewares/validateBody.js';
