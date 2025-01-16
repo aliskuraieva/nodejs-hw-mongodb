@@ -1,21 +1,13 @@
-import { randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import createHttpError from 'http-errors';
-
-import { FIFTEEN_MINUTES, THIRTY_DAYS } from '../constants/index.js';
-import { SessionsCollection } from '../db/models/session.js';
+import { randomBytes } from 'crypto';
+import jwt from 'jsonwebtoken';
 
 import { UsersCollection } from '../db/models/user.js';
-
-import jwt from 'jsonwebtoken';
-import { TEMPLATES_DIR } from '../constants/index.js';
-import { SMTP } from '../constants/index.js';
+import { SessionsCollection } from '../db/models/session.js';
+import { FIFTEEN_MINUTES, SMTP, THIRTY_DAYS } from '../constants/index.js';
 import { getEnvVar } from '../utils/getEnvVar.js';
-import { sendEmail } from '../utils/sendMail.js';
-
-import handlebars from 'handlebars';
-import path from 'node:path';
-import fs from 'node:fs/promises';
+import { sendMail } from '../utils/sendMail.js';
 
 export const registerUser = async (userData) => {
   const user = await UsersCollection.findOne({ email: userData.email });
@@ -119,26 +111,13 @@ export const requestResetToken = async (email) => {
     },
   );
 
-  const resetPasswordTemplatePath = path.join(
-    TEMPLATES_DIR,
-    'reset-password-email.html',
-  );
-
-  const templateSource = (
-    await fs.readFile(resetPasswordTemplatePath)
-  ).toString();
-
-  const template = handlebars.compile(templateSource);
-  const html = template({
-    name: user.name,
-    link: `${getEnvVar('APP_DOMAIN')}/reset-password?token=${resetToken}`,
-  });
-
-  await sendEmail({
+  await sendMail({
     from: getEnvVar(SMTP.SMTP_FROM),
     to: email,
     subject: 'Reset your password',
-    html,
+    html: `<p>Click <a href="${getEnvVar(
+      'APP_DOMAIN',
+    )}/reset-password?token=${resetToken}">here</a> to reset your password!</p>`,
   });
 };
 
@@ -147,14 +126,13 @@ export const resetPassword = async (payload) => {
 
   try {
     entries = jwt.verify(payload.token, getEnvVar('JWT_SECRET'));
-  } catch (err) {
-    if (err instanceof Error) throw createHttpError(401, err.message);
-    throw err;
+  } catch {
+    throw createHttpError(401, 'Token is expired or invalid.');
   }
 
   const user = await UsersCollection.findOne({
-    email: entries.email,
     _id: entries.sub,
+    email: entries.email,
   });
 
   if (!user) {
@@ -167,6 +145,4 @@ export const resetPassword = async (payload) => {
     { _id: user._id },
     { password: encryptedPassword },
   );
-
-  await SessionsCollection.deleteMany({ userId: user._id });
 };
