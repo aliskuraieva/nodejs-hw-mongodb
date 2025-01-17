@@ -12,6 +12,8 @@ import { parseSortParams } from '../utils/parseSortParams.js';
 import { parseFilterParams } from '../utils/parseFilterParams.js';
 import { saveFileToCloudinary } from '../utils/saveFileToCloudinary.js';
 import { saveFileToUploadDir } from '../utils/saveFileToUploadDir.js';
+import mongoose from 'mongoose';
+import { getEnvVar } from '../utils/getEnvVar.js';
 
 export const getAllContactsController = async (req, res) => {
   const userId = req.user._id;
@@ -52,52 +54,55 @@ export const getContactByIdController = async (req, res) => {
 
 export const addContactController = async (req, res) => {
   const userId = req.user._id;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw createHttpError(400, 'Invalid userId');
+  }
   const photo = req.file;
+  console.log(photo);
   let photoUrl;
 
   if (photo) {
-    if (process.env.ENABLE_CLOUDINARY === 'true')
+    if (getEnvVar('ENABLE_CLOUDINARY') === 'true') {
       photoUrl = await saveFileToCloudinary(photo);
-    else {
+    } else {
       photoUrl = await saveFileToUploadDir(photo);
     }
   }
 
-  const addedContact = await addContact({ ...req.body, photoUrl, userId });
-
+  const contact = await addContact({ ...req.body, userId, photo: photoUrl });
   res.status(201).json({
     status: 201,
     message: 'Successfully created a contact!',
-    data: addedContact,
+    data: contact,
   });
 };
 
 export const patchContactController = async (req, res) => {
-  const userId = req.user._id;
   const { contactId } = req.params;
   const photo = req.file;
   let photoUrl;
+
   if (photo) {
-    if (process.env.ENABLE_CLOUDINARY === 'true')
+    if (getEnvVar('ENABLE_CLOUDINARY') === 'true') {
       photoUrl = await saveFileToCloudinary(photo);
-    else {
+    } else {
       photoUrl = await saveFileToUploadDir(photo);
     }
   }
-  const patchedContact = await updateContact(
-    contactId,
-    { userId, ...req.body, photo: photoUrl },
-    { new: true },
-  );
 
-  if (!patchedContact) {
+  const result = await updateContact(contactId, {
+    ...req.body,
+    photo: photoUrl,
+  });
+
+  if (!result) {
     throw createHttpError(404, 'Contact not found');
   }
 
-  res.status(200).json({
+  res.json({
     status: 200,
-    message: 'Successfully patched a contact!',
-    data: patchedContact.contact,
+    message: `Successfully patched a student!`,
+    data: result.contact,
   });
 };
 
